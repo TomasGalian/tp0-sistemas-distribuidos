@@ -11,7 +11,7 @@ services:
     container_name: server
     image: server:latest
     entrypoint: python3 /main.py
-    enviorment:
+    environment:
       - PYTHONUNBUFFERED=1
       - LOGGING_LEVEL=DEBUG
     networks:
