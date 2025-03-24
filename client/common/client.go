@@ -54,6 +54,22 @@ func (c *Client) createClientSocket() error {
 func (c *Client) StartClientLoop() {
 	// There is an autoincremental msgID to identify every message sent
 	// Messages if the message amount threshold has not been surpassed
+
+	//Aca debería agregar algo para que se cierre la conexión en caso de recibir un SIGNTERM
+	//o algo similar
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM)
+	
+	go func() {
+		<-sigChan
+		log.Infof("Received SIGTERM, shutting down gracefully...")
+		// Acá debería cerrar el socket que creo tiene abierto el cliente si es que tiene
+		if c.conn != nil {
+			c.conn.Close()
+		}
+		os.Exit(0)
+	}
+
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
