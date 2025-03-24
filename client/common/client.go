@@ -7,6 +7,9 @@ import (
 	"time"
 
 	"github.com/op/go-logging"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 var log = logging.MustGetLogger("log")
@@ -65,10 +68,13 @@ func (c *Client) StartClientLoop() {
 		log.Infof("Received SIGTERM, shutting down gracefully...")
 		// Acá debería cerrar el socket que creo tiene abierto el cliente si es que tiene
 		if c.conn != nil {
-			c.conn.Close()
+			error := c.conn.Close()
+			if error == nil {
+				log.Info("action: close_connection | result: success | client_id: %v", c.config.ID)
+			}
 		}
 		os.Exit(0)
-	}
+	}()
 
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
 		// Create the connection the server in every loop iteration. Send an
