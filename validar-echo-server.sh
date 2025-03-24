@@ -1,3 +1,5 @@
+#!/bin/bash
+
 NETWORK="tp0_testing_net"
 PORT=12345
 MESSAGE="server testing"
