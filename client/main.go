@@ -103,13 +103,15 @@ func main() {
 	// Print program config with debugging purposes
 	PrintConfig(v)
 
-	clientConfig := common.ClientConfig{
-		ServerAddress: v.GetString("server.address"),
-		ID:            v.GetString("id"),
-		LoopAmount:    v.GetInt("loop.amount"),
-		LoopPeriod:    v.GetDuration("loop.period"),
-	}
+	ServerAddress := v.GetString("server.address")
 
-	client := common.NewClient(clientConfig)
-	client.StartClientLoop()
+	lottery := common.NewLottery(ServerAddress, *common.NewBet(
+		os.Getenv("NOMBRE"),
+		os.Getenv("APELLIDO"),
+		os.Getenv("DOCUMENTO"),
+		os.Getenv("NACIMIENTO"),
+		os.Getenv("NUMERO"),
+	), v.GetString("id"),
+	)
+	lottery.SendBet()
 }

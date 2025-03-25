@@ -2,6 +2,9 @@ import socket
 import logging
 import signal
 
+from common.utils import Bet, store_bets
+
+fields = ['Agencia', 'Nombre', 'Apellido', 'Documento', 'Fecha de nacimiento', 'Numero']
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -37,6 +40,32 @@ class Server:
             self.__handle_client_connection(self._client_sock)
             self._client_sock = None
 
+    def _receive_data(self, client_sock): 
+        data = {}
+
+        # Lo ideal es tener un contador para los campos
+        for field in fields:
+            # Leer un byte que indica la longitud del siguiente campo
+            len_field = client_sock.recv(1)
+            
+            if not len_field:  # Verificar si no hay más datos
+                break
+
+            # Convertir la longitud del campo (es un byte)
+            len_field = ord(len_field)
+
+            # Leer el campo con la longitud determinada
+            buffer = client_sock.recv(len_field)
+
+            # Verificar si recibimos la cantidad correcta de bytes, en caso de que lleguen fragmentados
+            while len(buffer) < len_field:
+                buffer += client_sock.recv(len_field - len(buffer))
+
+            # Almacenar el campo recibido
+            data[field] = buffer.decode('utf-8')
+        
+        return data
+    
     def __handle_client_connection(self, client_sock):
         """
         Read message from a specific client socket and closes the socket
@@ -46,11 +75,15 @@ class Server:
         """
         try:
             # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode('utf-8')
-            addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
+
+            bet = self._receive_data(client_sock)
+            print(bet)
+
+            bet = Bet(bet[fields[0]], bet[fields[1]], bet[fields[2]], bet[fields[3]], bet[fields[4]], bet[fields[5]])
+            store_bets([bet])
+
             # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode('utf-8'))
+            # client_sock.send("{}\n".format(bet).encode('utf-8'))
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
