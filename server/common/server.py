@@ -74,15 +74,12 @@ class Server:
         client socket will also be closed
         """
         try:
-            # TODO: Modify the receive to avoid short-reads
+            bet_fields = self._receive_data(client_sock)
 
-            bet = self._receive_data(client_sock)
-            print(bet)
-
-            bet = Bet(bet[fields[0]], bet[fields[1]], bet[fields[2]], bet[fields[3]], bet[fields[4]], bet[fields[5]])
+            bet = Bet(bet_fields[fields[0]], bet_fields[fields[1]], bet_fields[fields[2]], bet_fields[fields[3]], bet_fields[fields[4]], bet_fields[fields[5]])
             store_bets([bet])
             
-            logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet['Documento']} | numero: ${bet['Numero']}')
+            logging.info(f'action: apuesta_almacenada | result: success | dni: {bet_fields["Documento"]} | numero: {bet_fields["Numero"]}')
 
             # TODO: Modify the send to avoid short-writes
             # client_sock.send("{}\n".format(bet).encode('utf-8'))

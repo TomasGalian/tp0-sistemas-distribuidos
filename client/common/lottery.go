@@ -84,7 +84,7 @@ func (l *Lottery) SendBet() {
 		if l.conn != nil {
 			error := l.conn.Close()
 			if error == nil {
-				log.Info("action: close_connection | result: success | client_id: %v", l.bet.documento)
+				log.Info("action: close_connection | result: success | agency_id: %v", l.agencyId)
 			}
 		}
 		os.Exit(0)
@@ -94,8 +94,8 @@ func (l *Lottery) SendBet() {
 	conn, err := net.Dial("tcp", l.ServerAddress)
 	if err != nil {
 		log.Criticalf(
-			"action: connect | result: fail | client_dni: %v | error: %v",
-			l.bet.documento,
+			"action: connect | result: fail | agency_id: %v | error: %v",
+			l.agencyId,
 			err,
 		)
 	}
@@ -109,7 +109,7 @@ func (l *Lottery) SendBet() {
 	for lengthBet > 0 {
 		n, err := l.conn.Write(betSerialized)
 		if err != nil {
-			log.Errorf("action: apuesta_enviada | result: fail | client_dni: %v | numero: %v",
+			log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v",
 				l.bet.documento,
 				l.bet.numero,
 				err,
