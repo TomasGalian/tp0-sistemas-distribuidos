@@ -104,7 +104,6 @@ func (l *Lottery) SendBet() {
 	// Serialize Bet
 	betSerialized := SerializeBet(l.agencyId, &l.bet)
 	lengthBet := len(betSerialized)
-	log.Infof("action: serialize_bet | result: success | serial: %v", betSerialized)
 	
 	// Send bet
 	for lengthBet > 0 {
@@ -123,7 +122,7 @@ func (l *Lottery) SendBet() {
 
 	// CLose conection
 	l.conn.Close()
-	log.Infof("action: apuesta_enviada | result: success | client_dni: %v | numero: %v",
+	log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
 		l.bet.documento,
 		l.bet.numero,
 	)

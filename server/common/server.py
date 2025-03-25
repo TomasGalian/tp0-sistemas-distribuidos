@@ -81,6 +81,8 @@ class Server:
 
             bet = Bet(bet[fields[0]], bet[fields[1]], bet[fields[2]], bet[fields[3]], bet[fields[4]], bet[fields[5]])
             store_bets([bet])
+            
+            logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet['Documento']} | numero: ${bet['Numero']}')
 
             # TODO: Modify the send to avoid short-writes
             # client_sock.send("{}\n".format(bet).encode('utf-8'))
