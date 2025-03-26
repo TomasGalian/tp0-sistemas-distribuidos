@@ -43,25 +43,19 @@ class Server:
     def _receive_data(self, client_sock): 
         data = {}
 
-        # Lo ideal es tener un contador para los campos
         for field in fields:
-            # Leer un byte que indica la longitud del siguiente campo
             len_field = client_sock.recv(1)
             
-            if not len_field:  # Verificar si no hay más datos
+            if not len_field:  
                 break
 
-            # Convertir la longitud del campo (es un byte)
             len_field = ord(len_field)
 
-            # Leer el campo con la longitud determinada
             buffer = client_sock.recv(len_field)
 
-            # Verificar si recibimos la cantidad correcta de bytes, en caso de que lleguen fragmentados
             while len(buffer) < len_field:
                 buffer += client_sock.recv(len_field - len(buffer))
 
-            # Almacenar el campo recibido
             data[field] = buffer.decode('utf-8')
         
         return data
@@ -75,8 +69,10 @@ class Server:
         """
         try:
             bet_fields = self._receive_data(client_sock)
-
-            bet = Bet(bet_fields[fields[0]], bet_fields[fields[1]], bet_fields[fields[2]], bet_fields[fields[3]], bet_fields[fields[4]], bet_fields[fields[5]])
+            addr = client_sock.getpeername()
+            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {bet_fields}')
+                         
+            bet = Bet(*(bet_fields[field] for field in fields))
             store_bets([bet])
             
             logging.info(f'action: apuesta_almacenada | result: success | dni: {bet_fields["Documento"]} | numero: {bet_fields["Numero"]}')
