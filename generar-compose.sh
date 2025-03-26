@@ -31,7 +31,7 @@ do
     image: client:latest
     volumes:
       - ./client/config.yaml:/config.yaml
-      - ./.data/dataset/agency-$i.csv:/agency.csv
+      - ./.data/agency-$i.csv:/agency.csv
     entrypoint: /client
     environment:
       - CLI_ID=$i
