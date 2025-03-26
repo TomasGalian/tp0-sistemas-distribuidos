@@ -81,8 +81,8 @@ class Server:
             
             logging.info(f'action: apuesta_almacenada | result: success | dni: {bet_fields["Documento"]} | numero: {bet_fields["Numero"]}')
 
-            # TODO: Modify the send to avoid short-writes
-            # client_sock.send("{}\n".format(bet).encode('utf-8'))
+            ack = b'\x01'  # Enviar un byte como ACK (confirmación)
+            client_sock.send(ack)
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:

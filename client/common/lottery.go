@@ -11,105 +11,70 @@ import (
 
 var log = logging.MustGetLogger("log")
 
-type Bet struct {
-	nombre 		string
-	apellido 	string
-	documento 	string
-	nacimiento	string
-	numero		string
-}
-
 type Lottery struct {
-	ServerAddress 	string
-	conn 			net.Conn
-	agencyId 		string
-	bet 			Bet
+	serverAddress string
+	conn          net.Conn
+	agencyID      string
+	bet           Bet
 }
 
-func NewBet(nombre string, apellido string, documento string, nacimiento string, numero string) *Bet {
-	bet := &Bet{
-		nombre: nombre,
-		apellido: apellido,
-		documento: documento,
-		nacimiento: nacimiento,
-		numero: numero,
-	}
-	return bet
-}
 
-func NewLottery(ServerAddress string, bet Bet, agencyId string) *Lottery {
+func NewLottery(serverAddress string, bet Bet, agencyID string) *Lottery {
 	lottery := &Lottery{
-		ServerAddress: ServerAddress,
-		bet: bet,
-		agencyId: agencyId,
+		serverAddress: serverAddress,
+		bet:           bet,
+		agencyID:      agencyID,
 	}
 	return lottery
 }
 
-func SerializeBet(agencyId string, bet *Bet) []byte {
-	var serializeBet []byte
-
-	// Soprtomos campos de longitud maxima 255
-	serializeBet = append(serializeBet, byte(len(agencyId)))
-	serializeBet = append(serializeBet, []byte(agencyId)...)
-	
-	serializeBet = append(serializeBet, byte(len(bet.nombre)))
-	serializeBet = append(serializeBet, []byte(bet.nombre)...)
-
-	serializeBet = append(serializeBet, byte(len(bet.apellido)))
-	serializeBet = append(serializeBet, []byte(bet.apellido)...)
-
-	serializeBet = append(serializeBet, byte(len(bet.documento)))
-	serializeBet = append(serializeBet, []byte(bet.documento)...)
-
-	serializeBet = append(serializeBet, byte(len(bet.nacimiento)))
-	serializeBet = append(serializeBet, []byte(bet.nacimiento)...)
-
-	serializeBet = append(serializeBet, byte(len(bet.numero)))
-	serializeBet = append(serializeBet, []byte(bet.numero)...)
-
-	
-	return serializeBet
-}
-
-func (l *Lottery) SendBet() {
+func (l *Lottery) handleSigterm(sigChan chan os.Signal) {
 	// Handle SIGTERM
-	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM)
-	
+
 	go func() {
 		<-sigChan
 		log.Infof("Received SIGTERM, shutting down gracefully...")
-		// Acá debería cerrar el socket que creo tiene abierto el cliente si es que tiene
 		if l.conn != nil {
-			error := l.conn.Close()
-			if error == nil {
-				log.Info("action: close_connection | result: success | agency_id: %v", l.agencyId)
+			err := l.conn.Close()
+			if err == nil {
+				log.Info("action: close_connection | result: success | agency_id: %v", l.agencyID)
 			}
 		}
 		os.Exit(0)
 	}()
+}
 
+func (l *Lottery) createConnection() {
 	// Connect to server
-	conn, err := net.Dial("tcp", l.ServerAddress)
+	conn, err := net.Dial("tcp", l.serverAddress)
 	if err != nil {
 		log.Criticalf(
 			"action: connect | result: fail | agency_id: %v | error: %v",
-			l.agencyId,
+			l.agencyID,
 			err,
 		)
 	}
 	l.conn = conn
+}
+
+func (l *Lottery) SendBet() {
+	// Create signal channel and assign them to handleSigterm
+	sigChan := make(chan os.Signal, 1)
+	l.handleSigterm(sigChan)
+
+	// Create connection to server
+	l.createConnection()
 
 	// Serialize Bet
-	betSerialized := SerializeBet(l.agencyId, &l.bet)
+	betSerialized := serializeBet(l.agencyID, &l.bet)
 	lengthBet := len(betSerialized)
-	
+
 	// Send bet
 	for lengthBet > 0 {
 		n, err := l.conn.Write(betSerialized)
 		if err != nil {
-			log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v",
+			log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v | error: %v",
 				l.bet.documento,
 				l.bet.numero,
 				err,
@@ -120,10 +85,32 @@ func (l *Lottery) SendBet() {
 		betSerialized = betSerialized[n:]
 	}
 
-	// CLose conection
+	// Recibir un byte como ACK
+	ack := make([]byte, 1) // Un solo byte
+	_, err := l.conn.Read(ack)
+	if err != nil {
+		log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v | error: %v",
+				l.bet.documento,
+				l.bet.numero,
+				err,
+			)
+			return
+	}
+
+	// Verificar si recibimos el ACK
+	if ack[0] == 0x01 {
+		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
+			l.bet.documento,
+			l.bet.numero,
+		)
+	} else {
+		log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v | error: %v",
+				l.bet.documento,
+				l.bet.numero,
+				err,
+			)
+	}
+
+	// Close connection
 	l.conn.Close()
-	log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
-		l.bet.documento,
-		l.bet.numero,
-	)
 }
