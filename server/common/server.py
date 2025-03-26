@@ -77,7 +77,7 @@ class Server:
         try:
             bets_fields = self._receive_data(client_sock)
             addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {bets_fields}')
+            # logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {bets_fields}')
 
             for bet_fields in bets_fields:  
                 bet = Bet(*(bet_fields[field] for field in fields))
