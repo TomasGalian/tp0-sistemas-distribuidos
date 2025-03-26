@@ -16,11 +16,11 @@ class Server:
 
     def signal_handler(self, sig, frame):
         logging.info('action: shutdown | result: in_progress')
-        self._server_socket.close()
 
         if self._client_sock:
             self._client_sock.close()
 
+        self._server_socket.close()
         logging.info('action: shutdown | result: success')
         exit(0)
 
@@ -44,6 +44,9 @@ class Server:
         bets = []
 
         total_bets = client_sock.recv(1)
+        if not total_bets:  
+            return None
+
         total_bets = ord(total_bets)
 
         for _ in range(total_bets):
@@ -75,18 +78,21 @@ class Server:
         client socket will also be closed
         """
         try:
-            bets_fields = self._receive_data(client_sock)
-            addr = client_sock.getpeername()
-            # logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {bets_fields}')
+            while True:  # Keep processing chunks until the client closes the connection
+                bets_fields = self._receive_data(client_sock)
+                if not bets_fields:  
+                    break
 
-            for bet_fields in bets_fields:  
-                bet = Bet(*(bet_fields[field] for field in fields))
-                store_bets([bet])
-            
-            logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets_fields)}')
+                addr = client_sock.getpeername()
 
-            ack = b'\x01'  # Enviar un byte como ACK (confirmación)
-            client_sock.send(ack)
+                for bet_fields in bets_fields:  
+                    bet = Bet(*(bet_fields[field] for field in fields))
+                    store_bets([bet])
+                
+                logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets_fields)}')
+
+                ack = b'\x01'  # Send a byte as ACK (confirmation)
+                client_sock.send(ack)
         except OSError as e:
             logging.info(f'action: apuesta_recibida | result: fail | cantidad: {len(bets_fields)}')
         finally:
