@@ -41,24 +41,31 @@ class Server:
             self._client_sock = None
 
     def _receive_data(self, client_sock): 
-        data = {}
+        bets = []
 
-        for field in fields:
-            len_field = client_sock.recv(1)
+        total_bets = client_sock.recv(1)
+        total_bets = ord(total_bets)
+
+        for _ in range(total_bets):
+            data = {}
+            for field in fields:
+                len_field = client_sock.recv(1)
+                
+                if not len_field:  
+                    break
+
+                len_field = ord(len_field)
+
+                buffer = client_sock.recv(len_field)
+
+                while len(buffer) < len_field:
+                    buffer += client_sock.recv(len_field - len(buffer))
+
+                data[field] = buffer.decode('utf-8')
             
-            if not len_field:  
-                break
-
-            len_field = ord(len_field)
-
-            buffer = client_sock.recv(len_field)
-
-            while len(buffer) < len_field:
-                buffer += client_sock.recv(len_field - len(buffer))
-
-            data[field] = buffer.decode('utf-8')
+            bets.append(data)
         
-        return data
+        return bets
     
     def __handle_client_connection(self, client_sock):
         """
@@ -68,19 +75,20 @@ class Server:
         client socket will also be closed
         """
         try:
-            bet_fields = self._receive_data(client_sock)
+            bets_fields = self._receive_data(client_sock)
             addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {bet_fields}')
-                         
-            bet = Bet(*(bet_fields[field] for field in fields))
-            store_bets([bet])
+            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {bets_fields}')
+
+            for bet_fields in bets_fields:  
+                bet = Bet(*(bet_fields[field] for field in fields))
+                store_bets([bet])
             
-            logging.info(f'action: apuesta_almacenada | result: success | dni: {bet_fields["Documento"]} | numero: {bet_fields["Numero"]}')
+            logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets_fields)}')
 
             ack = b'\x01'  # Enviar un byte como ACK (confirmación)
             client_sock.send(ack)
         except OSError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
+            logging.info(f'action: apuesta_recibida | result: fail | cantidad: {len(bets_fields)}')
         finally:
             client_sock.close()
 

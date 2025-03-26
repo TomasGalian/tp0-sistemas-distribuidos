@@ -1,6 +1,8 @@
 package common
 
 import (
+	"encoding/csv"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -15,15 +17,15 @@ type Lottery struct {
 	serverAddress string
 	conn          net.Conn
 	agencyID      string
-	bet           Bet
+	maxAmount	  int
 }
 
 
-func NewLottery(serverAddress string, bet Bet, agencyID string) *Lottery {
+func NewLottery(serverAddress string, agencyID string, maxAmount int) *Lottery {
 	lottery := &Lottery{
 		serverAddress: serverAddress,
-		bet:           bet,
 		agencyID:      agencyID,
+		maxAmount:     maxAmount,
 	}
 	return lottery
 }
@@ -58,57 +60,89 @@ func (l *Lottery) createConnection() {
 	l.conn = conn
 }
 
+func (l *Lottery) getReader() *csv.Reader {
+	file, err := os.Open("agency.csv")
+	if err != nil {
+		log.Errorf("action: open_file | result: fail | error: %v", err)
+		return nil
+	}
+
+	betsReader := csv.NewReader(file)
+	return betsReader
+}
+
 func (l *Lottery) SendBet() {
 	// Create signal channel and assign them to handleSigterm
 	sigChan := make(chan os.Signal, 1)
 	l.handleSigterm(sigChan)
 
-	// Create connection to server
-	l.createConnection()
+	csvReader := l.getReader()
+	if csvReader == nil {
+		return
+	}
 
-	// Serialize Bet
-	betSerialized := serializeBet(l.agencyID, &l.bet)
-	lengthBet := len(betSerialized)
-
-	// Send bet
-	for lengthBet > 0 {
-		n, err := l.conn.Write(betSerialized)
-		if err != nil {
-			log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v | error: %v",
-				l.bet.documento,
-				l.bet.numero,
-				err,
+	
+	// Read bets from csv
+	finish := false
+	for !finish {
+		// Create connection to server
+		l.createConnection()
+		// Read bets from csv
+		betsSerielized := make([]byte, 0)
+		numBets := uint8(0)
+		for i := 0; i < l.maxAmount; i++ {
+			// Read the bet
+			csvBet, err := csvReader.Read()
+			if err == io.EOF {
+				finish = true
+				break
+			} 
+			if err != nil {
+				return // TODO verify this
+			}
+			// Create a bet
+			bet := NewBet(
+				csvBet[0],
+				csvBet[1],
+				csvBet[2],
+				csvBet[3],
+				csvBet[4],
 			)
-			return
+			
+			// Serialize Bet
+			betSerialized := serializeBet(l.agencyID, bet)
+			betsSerielized = append(betsSerielized, betSerialized...)
+			numBets++
 		}
-		lengthBet -= n
-		betSerialized = betSerialized[n:]
-	}
+		// Send bets to server
+		betsSerielized = append([]byte{numBets}, betsSerielized...)
+		lengthBets := len(betsSerielized)
 
-	// Recibir un byte como ACK
-	ack := make([]byte, 1) // Un solo byte
-	_, err := l.conn.Read(ack)
-	if err != nil {
-		log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v | error: %v",
-				l.bet.documento,
-				l.bet.numero,
-				err,
-			)
-			return
-	}
+		log.Infof("action: apuesta_enviada | result: success | betsSerialized: %v", betsSerielized)
 
-	// Verificar si recibimos el ACK
-	if ack[0] == 0x01 {
-		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
-			l.bet.documento,
-			l.bet.numero,
-		)
-	} else {
-		log.Errorf("action: apuesta_enviada | result: fail | dni: %v | numero: %v | error: %v",
-				l.bet.documento,
-				l.bet.numero,
-				err,
-			)
+		for lengthBets > 0 {
+			n, err := l.conn.Write(betsSerielized)
+			if err != nil {
+				log.Errorf("action: apuesta_enviada | result: fail | error: %v", err)
+				return
+			}
+			lengthBets -= n
+			betsSerielized = betsSerielized[n:]
+		}
+
+		// Recibir un byte como ACK
+		ack := make([]byte, 1) // Un solo byte
+		_, err := l.conn.Read(ack)
+		if err != nil {
+			log.Errorf("action: apuesta_enviada | result: fail | error: %v", err)
+				return
+		}
+		// Verificar si recibimos el ACK
+		if ack[0] == 0x01 {
+			log.Infof("action: apuesta_enviada | result: success")
+		} else {
+			log.Errorf("action: apuesta_enviada | result: fail | error: %v", err)
+		}
 	}
 
 	// Close connection

@@ -36,6 +36,7 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("loop", "period")
 	v.BindEnv("loop", "amount")
 	v.BindEnv("log", "level")
+	v.BindEnv("batch", "maxAmount")
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -80,12 +81,13 @@ func InitLogger(logLevel string) error {
 // PrintConfig Print all the configuration parameters of the program.
 // For debugging purposes only
 func PrintConfig(v *viper.Viper) {
-	log.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_amount: %v | loop_period: %v | log_level: %s",
+	log.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_amount: %v | loop_period: %v | log_level: %s | batch_maxAmount: %v",
 		v.GetString("id"),
 		v.GetString("server.address"),
 		v.GetInt("loop.amount"),
 		v.GetDuration("loop.period"),
 		v.GetString("log.level"),
+		v.GetInt("batch.maxAmount"),
 	)
 }
 
@@ -103,15 +105,7 @@ func main() {
 	PrintConfig(v)
 
 	serverAddress := v.GetString("server.address")
-	
-	bet := common.NewBet(
-		os.Getenv("NOMBRE"),
-		os.Getenv("APELLIDO"),
-		os.Getenv("DOCUMENTO"),
-		os.Getenv("NACIMIENTO"),
-		os.Getenv("NUMERO"),
-	)
 
-	lottery := common.NewLottery(serverAddress, *bet, v.GetString("id"))
+	lottery := common.NewLottery(serverAddress, v.GetString("id"), v.GetInt("batch.maxAmount"))
 	lottery.SendBet()
 }
