@@ -39,9 +39,9 @@ class LotteryCenter:
 
         # Recive connections and bets
         for i in range(0, self._max_agencies): # Total agencys
-            self._client_sock = self.__accept_new_connection()
+            client_sock = self.__accept_new_connection()
             logging.debug('action: accept_connections | result: success')
-            self.__handle_client_connection(self._client_sock)
+            self.__handle_client_connection(client_sock)
 
         # Once all bets are received, the lottery center will start the lottery
         winners_by_agency = self._get_winners_by_agency()
