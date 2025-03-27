@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/op/go-logging"
 )
@@ -202,6 +203,8 @@ func (a *Agency) StartLottery() {
 	if _, err_winners := a.conn.Read(winners_len); err_winners != nil {
 		return
 	}
+
+	time.Sleep(2 * time.Second)
 
 	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", winners_len[0])
 
