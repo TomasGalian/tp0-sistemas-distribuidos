@@ -107,6 +107,6 @@ func main() {
 	serverAddress := v.GetString("server.address")
 	maxAmount := v.GetInt("batch.maxAmount")
 
-	lottery := common.NewLottery(serverAddress, v.GetString("id"), maxAmount)
-	lottery.SendBet()
+	lottery := common.NewAgency(serverAddress, v.GetString("id"), maxAmount)
+	lottery.StartLottery()
 }
