@@ -137,7 +137,7 @@ class LotteryCenter:
 
                 action = client_sock.recv(1)
                 action = int.from_bytes(action, byteorder='big')
-            self._client_sockets[bets[0].agency] = self._client_sock
+            self._client_sockets[bets[0].agency] = client_sock
         except OSError as e:
             logging.info(f'action: apuesta_recibida | result: fail | cantidad: {action}')
 
