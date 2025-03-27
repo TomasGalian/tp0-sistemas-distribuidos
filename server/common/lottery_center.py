@@ -12,12 +12,13 @@ class LotteryCenter:
         self._lottery_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._lottery_socket.bind(('', port))
         self._lottery_socket.listen(listen_backlog)
-        self._client_sock = None
+        self._client_sockets = {}
 
     def handler_Sigterm(self, sig, frame):
         logging.debug('action: shutdown | result: in_progress')
-        if self._client_sock:
-            self._client_sock.close()
+        for _client_sock in self._client_sockets.values():
+            if self._client_sock:
+                self._client_sock.close()
 
         self._lottery_socket.close()
         logging.info('action: shutdown | result: success')
@@ -40,16 +41,59 @@ class LotteryCenter:
             self.__handle_client_connection(self._client_sock)
 
         # Hacer el sorteo
+        winners = self._get_winners()
         logging.info('action: sorteo | result: success')
-        bets_list = load_bets()
         for agency_id, _client_sock in self._client_sockets.items():
-            if ord(_client_sock.recv(1)) == 255:  # Receive the signal to start the draw
-                for bet in bets_list:
-                    if has_won(bet) and bet.agency == agency_id:
-                        _client_sock.send(len(bet.document).encode('utf-8')) # TODO avoid short writes
-                        _client_sock.send(bet.document.encode('utf-8')) # TODO avoid short writes
-                        
-                _client_sock.send(b'0')  # Send a byte to signal the end of the draw
+            action = _client_sock.recv(1)
+            if action == b'\xF0':  # Receive the signal to deliver winners
+                winner_agency = winners.get(agency_id, [])
+                self._send_winners(_client_sock, winner_agency)
+
+    def _get_winners(self):
+        bets_list = load_bets()
+        winners = {}
+        for bet in bets_list:
+            if has_won(bet):
+                if bet.agency not in winners:
+                    winners[bet.agency] = []
+                winners[bet.agency].append(bet)
+        return winners
+
+    def _send_winners(self, client_sock, winners):        
+        bets_serialized = bytearray()
+        # Supose that len(winners) is less than 255
+        bets_serialized.extend(len(winners).to_bytes(1, byteorder='big')) 
+        
+        for winner in winners:
+            bet_serialized = self._serialize_bet(winner)
+            bets_serialized.extend(bet_serialized)
+        
+        client_sock.sendall(bets_serialized)
+
+    def _serialize_bet(self, bet):
+        serialized_bet = bytearray()
+
+        # Serialize agency_id
+        serialized_bet.append(len(str(bet.agency))) 
+        serialized_bet.extend(str(bet.agency).encode('utf-8')) 
+
+        serialized_bet.append(len(bet.first_name))  
+        serialized_bet.extend(bet.first_name.encode('utf-8'))  
+
+        serialized_bet.append(len(bet.last_name)) 
+        serialized_bet.extend(bet.last_name.encode('utf-8'))  
+
+        serialized_bet.append(len(bet.document))  
+        serialized_bet.extend(bet.document.encode('utf-8'))  
+
+        serialized_bet.append(len(str(bet.birthdate)))  
+        serialized_bet.extend(str(bet.birthdate).encode('utf-8'))  
+
+        serialized_bet.append(len(str(bet.number)))
+        serialized_bet.extend(str(bet.number).encode('utf-8'))  
+
+        # Return serialized data as bytes
+        return bytes(serialized_bet)
 
     def _receive_bet(self, client_sock, total_bets):
         bets = []
@@ -94,10 +138,9 @@ class LotteryCenter:
 
                 action = client_sock.recv(1)
                 action = int.from_bytes(action, byteorder='big')
+            self._client_sockets[bets[0].agency] = self._client_sock
         except OSError as e:
             logging.info(f'action: apuesta_recibida | result: fail | cantidad: {action}')
-        finally:
-            client_sock.close()
 
     def __accept_new_connection(self):
         """

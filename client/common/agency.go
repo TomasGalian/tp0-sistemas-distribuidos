@@ -109,14 +109,11 @@ func (a *Agency) SendBets(bets []Bet) error {
 	// The max number of bets is 254 because of the ACK
 	betsSerialized = append([]byte{uint8(len(bets))}, betsSerialized...)
 
-	log.Debugf("action: serialize_bets | result: success | bet: %v", betsSerialized)
-
 	// Send bet
 	err := a.sendData(betsSerialized)
 	if err != nil {
 		return err
 	}
-	log.Debugf("action: send_bets | result: success | bet: %v", betsSerialized)
 
 	// Wait for ACK
 	err_ack := a.waitACK()
@@ -126,6 +123,41 @@ func (a *Agency) SendBets(bets []Bet) error {
 
 	log.Infof("action: apuesta_enviada | result: success | cantidad: %v", len(bets))
 	return nil
+}
+
+func (a *Agency) receiveWinners(clientSock net.Conn, totalBets int) ([]Bet, error) {
+	var bets []Bet
+	fields := []string{"Agencia", "Nombre", "Apellido", "Documento", "Fecha de nacimiento", "Numero"}
+
+	for i := 0; i < totalBets; i++ {
+		bet := make(map[string]string)
+		for _, field := range fields {
+			lenField := make([]byte, 1)
+			_, err := clientSock.Read(lenField)
+			if err != nil {
+				return nil, err
+			}
+
+			fieldLength := int(lenField[0])
+			buffer := make([]byte, fieldLength)
+			_, err = clientSock.Read(buffer)
+			if err != nil {
+				return nil, err
+			}
+
+			bet[field] = string(buffer)
+		}
+
+		bets = append(bets, Bet{
+			nombre:      	bet["Nombre"],
+			apellido:       bet["Apellido"],
+			documento:      bet["Documento"],
+			nacimiento:     bet["Fecha de nacimiento"],
+			numero:         bet["Numero"],
+		})
+	}
+
+	return bets, nil
 }
 
 func (a *Agency) StartLottery() {
@@ -158,6 +190,20 @@ func (a *Agency) StartLottery() {
 		log.Errorf("action: send_end_bets | result: fail | agency_id: %v | error: %v", a.agencyID, err)
 		return
 	}
+
+	// Send winners ask to server: we use 0xF0 to ask for winners
+	err = a.sendData([]byte{0xF0})
+	if err != nil {
+		log.Errorf("action: send_winners | result: fail | agency_id: %v | error: %v", a.agencyID, err)
+		return
+	}
+
+	winners_len := make([]byte, 1)
+	if _, err_winners := a.conn.Read(winners_len); err_winners != nil {
+		return
+	}
+
+	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", winners_len[0])
 
 	// Close reader 
 	a.reader.Close()	
