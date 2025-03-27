@@ -103,15 +103,7 @@ func main() {
 	PrintConfig(v)
 
 	serverAddress := v.GetString("server.address")
-	
-	bet := common.NewBet(
-		os.Getenv("NOMBRE"),
-		os.Getenv("APELLIDO"),
-		os.Getenv("DOCUMENTO"),
-		os.Getenv("NACIMIENTO"),
-		os.Getenv("NUMERO"),
-	)
 
-	lottery := common.NewLottery(serverAddress, *bet, v.GetString("id"))
-	lottery.SendBet()
+	lottery := common.NewAgency(serverAddress, v.GetString("id"))
+	lottery.StartLottery()
 }

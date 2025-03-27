@@ -9,6 +9,10 @@ type Bet struct {
 }
 
 func NewBet(nombre string, apellido string, documento string, nacimiento string, numero string) *Bet {
+	if len(nombre) >= 255 || len(apellido) >= 255 || len(documento) >= 255 || len(nacimiento) >= 255 || len(numero) >= 255 {
+		return nil
+	}
+
 	bet := &Bet{
 		nombre:     nombre,
 		apellido:   apellido,
@@ -19,10 +23,15 @@ func NewBet(nombre string, apellido string, documento string, nacimiento string,
 	return bet
 }
 
-func serializeBet(agencyID string, bet *Bet) []byte {
+func (bet *Bet) serializeBet(agencyID string) []byte {
 	var serializedBet []byte
 
-	// Soprtomos campos de longitud maxima 255
+	// Use 1 byte for action
+	// 0x01 for send bet
+	// 0x11 for send ACK
+	serializedBet = append(serializedBet, 0x01)
+
+	// The rest of the fields are serialized as: length + data
 	serializedBet = append(serializedBet, byte(len(agencyID)))
 	serializedBet = append(serializedBet, []byte(agencyID)...)
 
