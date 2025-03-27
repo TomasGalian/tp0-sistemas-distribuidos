@@ -65,7 +65,7 @@ class LotteryCenter:
         self._barrier_bet.wait()
         with self._lock_winners:
             self._winners_by_agency.update(self._get_winners_by_agency())  # Update shared dictionary
-        logging.info('action: sorteo | result: successs')
+        logging.info('action: sorteo | result: success')
         self._barrier_sorteo.wait()
 
         for p in processes:
