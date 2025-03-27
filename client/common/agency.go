@@ -50,6 +50,14 @@ func (a *Agency) handleSigterm(sigChan chan os.Signal) {
 				log.Infof("action: close_connection | result: success | agency_id: %v", a.agencyID)
 			}
 		}
+
+		// Cerrar el archivo si está abierto
+		if a.reader != nil {
+			err := a.reader.Close()
+			if err != nil {
+				log.Errorf("action: close_reader | result: fail | agency_id: %v | error: %v", a.agencyID, err)
+			}
+		}
 		os.Exit(0)
 	}()
 }
@@ -151,6 +159,9 @@ func (a *Agency) StartLottery() {
 
 	// Create connection to server
 	a.createAgencySocket()
+	if a.conn == nil {
+		return
+	}
 
 	for bets := a.reader.getBets(); len(bets) > 0; bets = a.reader.getBets() {
 		// Send bets

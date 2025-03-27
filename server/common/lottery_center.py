@@ -25,7 +25,9 @@ class LotteryCenter:
         self._barrier_bet = multiprocessing.Barrier(int(max_agencies) + 1)      # Barrier to sync all bets done
         self._barrier_sorteo = multiprocessing.Barrier(int(max_agencies) + 1)   # Barrier to sync all winners
 
-        self._lock_file = multiprocessing.Lock()    # Lock para evitar race conditions en el archivos
+        self._lock_file = multiprocessing.Lock()                                # Lock para evitar race conditions en el archivos
+
+        self._processes = []
 
     def run(self):
         """
@@ -37,21 +39,19 @@ class LotteryCenter:
         # Register signal handler
         signal.signal(signal.SIGTERM, self.handler_Sigterm)
 
-        processes = []
-
         # Recive connections and bets. Expecting to receive bets from all agencies
         for _ in range(0, self._max_agencies): 
             client_sock = self.__accept_new_connection()                    # The main process is in charge to acept connections
             p = multiprocessing.Process(target=self.__handle_client_connection, args=(client_sock, self._lock_file, self._barrier_bet, self._barrier_sorteo), name=f"Process-{_+1}")
             p.start()
-            processes.append(p)
+            self._processes.append(p)
 
 
         self._barrier_bet.wait()                                        # Once all bets are received, the lottery center will start the lottery 
         self._winners_by_agency.update(self.__get_winners_by_agency())  # Update shared dictionary
         self._barrier_sorteo.wait()                                     # Once the lottery is done, the lottery center will send the winners to the agencies    
 
-        for p in processes:                         # Wait for all processes to finish
+        for p in self._processes:                         # Wait for all processes to finish
             p.join()
 
     def handler_Sigterm(self, sig, frame):
@@ -61,6 +61,13 @@ class LotteryCenter:
                 _client_sock.close()
 
         self._lottery_socket.close()
+
+        for p in self._processes():
+            p.terminate()
+            p.join()  
+
+        self._manager.shutdown()
+
         logging.info('action: shutdown | result: success')
         exit(0)
 
