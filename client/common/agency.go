@@ -106,7 +106,7 @@ func (a *Agency) SendBet(bet *Bet) error {
 		return err
 	}
 
-	log.Infof("action: apuesta_enviada | result: success | dni: %v, | numero: %v", bet.documento, bet.numero)
+	log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v", bet.documento, bet.numero)
 	return nil
 }
 
