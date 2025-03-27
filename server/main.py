@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from configparser import ConfigParser
-from common.server import Server
+from common.lottery_center import LotteryCenter   
 import logging
 import os
 
@@ -48,8 +48,8 @@ def main():
                   f"listen_backlog: {listen_backlog} | logging_level: {logging_level}")
 
     # Initialize server and start server loop
-    server = Server(port, listen_backlog)
-    server.run()
+    lottery_center = LotteryCenter(port, listen_backlog)
+    lottery_center.run()
 
 def initialize_log(logging_level):
     """
