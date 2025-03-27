@@ -157,6 +157,81 @@ func (l *Lottery) SendBet() {
 		}
 	}
 
+	// Create an empty bet to finish the connection
+	bet := NewBet("", "", "", "", "")
+		
+	// Serialize Bet
+	betSerialized := serializeBet(l.agencyID, bet)
+	betSerialized = append([]byte{0}, betSerialized...)
+	lengthBet := len(betSerialized)
+
+	// Send empty bet to server
+	for lengthBet > 0 {
+		n, err := l.conn.Write(betSerialized)
+		if err != nil {
+			log.Errorf("action: apuesta_enviada | result: fail | error: %v", err)
+			return
+		}
+		if n == 0 {
+			log.Errorf("action: apuesta_enviada | result: fail | reason: zero bytes written")
+			return
+		}
+		lengthBet -= n
+		betSerialized = betSerialized[n:]
+	}
+
+	// Create an empty bet to get winners
+	winner_msg := NewBet("", "", "", "", "")
+	
+	// Serialize Bet
+	winner_Msg_Serialized := serializeBet(l.agencyID, winner_msg)
+	winner_Msg_Serialized = append([]byte{255}, winner_Msg_Serialized...)
+	lengthWinnerMsg := len(winner_Msg_Serialized)
+
+	// Send empty bet to server
+	for lengthWinnerMsg > 0 {
+		n, err := l.conn.Write(winner_Msg_Serialized)
+		if err != nil {
+			log.Errorf("action: apuesta_enviada | result: fail | error: %v", err)
+			return
+		}
+		if n == 0 {
+			log.Errorf("action: apuesta_enviada | result: fail | reason: zero bytes written")
+			return
+		}
+		lengthWinnerMsg -= n
+		winner_Msg_Serialized = winner_Msg_Serialized[n:]
+	}
+
+	winners := 0
+
+	for {
+		// Read the length of the document (1 byte)
+		docLength := make([]byte, 1)
+		n, err := l.conn.Read(docLength)
+		if err != nil || n != 1 {
+			log.Errorf("action: recibir_documento_len | result: fail | error: %v", err)
+			return
+		}
+
+		// Read the document based on the received length
+		length := int(docLength[0])
+
+		if length == 0 {
+			break
+		}
+
+		document := make([]byte, length)
+		n, err = l.conn.Read(document)
+		if err != nil || n != length {
+			log.Errorf("action: recibir_documento | result: fail | error: %v", err)
+			return
+		}
+		winners++
+	}
+
+	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", winners)
+
 	// Close connection
 	l.conn.Close()
 }

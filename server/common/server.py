@@ -2,7 +2,7 @@ import socket
 import logging
 import signal
 
-from common.utils import Bet, store_bets
+from common.utils import Bet, store_bets, has_won, load_bets
 
 fields = ['Agencia', 'Nombre', 'Apellido', 'Documento', 'Fecha de nacimiento', 'Numero']
 
@@ -12,13 +12,14 @@ class Server:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', port))
         self._server_socket.listen(listen_backlog)
-        self._client_sock = None
+        self._client_sockets = {}
 
     def signal_handler(self, sig, frame):
         logging.info('action: shutdown | result: in_progress')
-
-        if self._client_sock:
-            self._client_sock.close()
+        
+        for _client_sock in self._client_sockets.values():
+            if _client_sock:
+                _client_sock.close()
 
         self._server_socket.close()
         logging.info('action: shutdown | result: success')
@@ -35,16 +36,29 @@ class Server:
 
         signal.signal(signal.SIGTERM, self.signal_handler)
 
-        while True:
+        for i in range(0, 5): # Total agencys
             self._client_sock = self.__accept_new_connection()
             self.__handle_client_connection(self._client_sock)
-            self._client_sock = None
+
+        # Hacer el sorteo
+        logging.info('action: sorteo | result: success')
+        bets_list = load_bets()
+        for agency_id, _client_sock in self._client_sockets.items():
+            if ord(_client_sock.recv(1)) == 255:  # Receive the signal to start the draw
+                for bet in bets_list:
+                    if has_won(bet) and bet.agency == agency_id:
+                        _client_sock.send(len(bet.document).encode('utf-8')) # TODO avoid short writes
+                        _client_sock.send(bet.document.encode('utf-8')) # TODO avoid short writes
+                        
+                _client_sock.send(b'0')  # Send a byte to signal the end of the draw
 
     def _receive_data(self, client_sock): 
         bets = []
 
         total_bets = client_sock.recv(1)
-        if not total_bets:  
+        if ord(total_bets) == 0:  
+            # Flush the socket to ensure no leftover data remains (TODO verify)
+            client_sock.recv(1024)
             return None
 
         total_bets = ord(total_bets)
@@ -84,6 +98,7 @@ class Server:
                     break
 
                 addr = client_sock.getpeername()
+                self._client_sockets[bets_fields[0]['Agencia']] = client_sock
 
                 for bet_fields in bets_fields:  
                     bet = Bet(*(bet_fields[field] for field in fields))
