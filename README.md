@@ -178,3 +178,131 @@ Se espera que se redacte una sección del README en donde se indique cómo ejecu
 Se proveen [pruebas automáticas](https://github.com/7574-sistemas-distribuidos/tp0-tests) de caja negra. Se exige que la resolución de los ejercicios pase tales pruebas, o en su defecto que las discrepancias sean justificadas y discutidas con los docentes antes del día de la entrega. El incumplimiento de las pruebas es condición de desaprobación, pero su cumplimiento no es suficiente para la aprobación. Respetar las entradas de log planteadas en los ejercicios, pues son las que se chequean en cada uno de los tests.
 
 La corrección personal tendrá en cuenta la calidad del código entregado y casos de error posibles, se manifiesten o no durante la ejecución del trabajo práctico. Se pide a los alumnos leer atentamente y **tener en cuenta** los criterios de corrección informados  [en el campus](https://campusgrado.fi.uba.ar/mod/page/view.php?id=73393).
+
+## Resolución
+
+### Ejercicio 1
+
+Se define un script de bash llamado `generar-compose.sh` para la creación de un archivo Docker Compose dinámico basado en la cantidad de clientes especificada. Para ejecutar este script, se debe utilizar la siguiente línea de comando:
+
+```
+./generar-compose.sh <Nombre del archivo> <N° Clientes>
+```
+
+Se recomienda utilizar el nombre `docker-compose-dev.yaml` como archivo de salida.
+
+### Implementación
+
+El script se implementó completamente en bash, siguiendo los pasos detallados a continuación:
+
+1. **Parámetros de entrada**: 
+    - `$1`: Nombre del archivo de salida.
+    - `$2`: Cantidad de clientes.
+
+2. **Creación del archivo**: 
+    - Se utiliza el comando `touch` para crear el archivo especificado en `$1`.
+
+3. **Escritura de configuración inicial**:
+    - Se escribe la configuración base del archivo Docker Compose, incluyendo la definición del servidor.
+
+4. **Generación dinámica de clientes**:
+    - Se utiliza un bucle `for` que itera desde `1` hasta el número de clientes especificado en `$2`.
+    - En cada iteración, se agrega un bloque de configuración para un cliente, incluyendo una variable de entorno que define su `ID`.
+
+5. **Configuración de red**:
+    - Al finalizar, se agrega la configuración de la red que será utilizada por los contenedores.
+
+
+### Ejercicio 2
+
+Se solicita modificar tanto el cliente como el servidor para evita  la necesidad de reconstruir las imágenes de Docker en caso de que se realicen cambios en los archivos de configuración:
+- config.yaml para el cliente
+- config.ini para el servidor
+
+Los volúmenes son esenciales para separar los datos de la lógica de la aplicación, facilitando el desarrollo y la administración de contenedores. Los volúmenes permiten persistir datos y compartir archivos entre el host y los contenedores. Como son unidades que se montan luego, si los cambio, no es necesario generar nuevamente una imagen.
+
+Para que esto se cumpla también se eliminó de los Dockerfile de cada servicio (servidor y cliente) la copia de estos archivos de configuración.
+
+De esta forma, al script de `generar-compose.sh` se agrega:
+- Servidor: 
+```
+volumes: 
+      - ./server/config.ini:/config.ini
+```
+
+- Cliente: 
+```
+    volumes:
+      - ./client/config.yaml:/config.yaml
+```
+
+La ejecución es igual al ejercicio 1.
+
+### Ejercicio 3
+
+El script validar-echo-server.sh verifica el correcto funcionamiento del servidor utilizando netcat dentro de un contenedor Docker. Dado que el servidor es un echo server, el script envía un mensaje y espera recibir el mismo mensaje como respuesta.
+
+
+El script, nuevamente, se implementó completamente en bash, siguiendo los pasos detallados a continuación:
+
+1) Se definen las siguientes variables:
+- `NETWORK`: nombre de la red que se va a usar para la comunicacion
+- `PORT`: puerto en el que esta escuchando el servidor
+- `MESSAGE`: mensaje de prueba para enviar al servidor
+
+2) Se ejecuta `netcat` dentro de un contenedor docker con una imagen `busybox` para poder ejecutar el comando `nc`. Una vez enviado el mensaje al servidor se almacena la respuesta en la variable `RESPONSE`
+
+3) Por ultimo se verifica que la respuesta coincida con el mensaje enviado imprimiento `success` o `fail` si no hay coincidencia.
+
+La ejecución de este script es similar a la del ejercicio 1, salvo que no recibe parametros:
+```
+./validar-echo-server.sh
+```
+
+### Ejercicio 4
+
+En este ejercicio se pide que ambos serivicios, tanto el cliente como el servidor terminen de forma graceful al recibir la signal SIGTERM. 
+
+#### Cliente
+Para el caso del cliente se sigue los siguientes paso dentro del código:
+
+1) Se captura o se hace un catch de la señal SIGTERM. Esto se realiza mediante un channel `sigChan`. Dentro de este channel usamos `signal.Notify` para regsitrar la señal `SIGTERM` y enviarla al canal
+
+2) El manejo de esta señal se hace mediante una goroutine que es una función o método que se ejecuta de forma concurrente. 
+
+3) Cuando llega la señal se imprime un mensaje informativo y si existe una conexión abierta (por que puede que no la haya) se cierra correctamente y se llama a `os.Exit(0)` para finalizar el programa de manera controlada
+
+#### Servidor
+Para el caso del servidor se sigue los siguientes paso dentro del código:
+
+1) Para capturar la señal de `SIGTERM` se usa signal que es un paquete de python que permite manejar señales del sistema. Cuando el proceso recibe esta señal ejecuta la función signal_handler
+
+2) Esta función cierra, si es que hay, la conexión activa con el cliente y cierra además el socket del servidor
+
+3) Por último imprime estos pasos y llama a `exit(0)` para terminar el proceso de forma controlada
+
+### Ejercicio 5
+
+A partir de este ejercicio, se inicia la Parte 2 del trabajo, enfocada en la comunicación entre servicios. En este caso, se modelan agencias de lotería (clientes) que interactúan con la central de lotería nacional (servidor).
+
+#### Implementación
+Para la implementación de las distintas apuestas se creo una estructura que contenga los datos de la misma y que tenga métodos encargados de validar los campos y de serializarlos para su correcto envio.
+
+La agencia (cliente) lo que hace es crear una nueva apuesta obteniendo los valores de variables de entornos seteadas en el docker compose mediante el script `generar-compose.sh`
+
+Una vez que se envia el cliente la apuesta pasa a la espera de un ACK de la central de lotería indicando que la apuesta se realizó con exito.
+
+Con respecto a la central (servidor), una vez establecida la conexión pasa a esperar que la agencia le envie una apuesta. Cuando recibe el mensaje de una apuesta comienza a leer de forma segura evitando short reads. Una vez que finaliza, crea una Bet mediante la clase proporcionada por la cátedra y la almacena. Luego de almacenarla envia un ACK a la agencia confirmando el almacenamiento.
+
+#### Protocolo
+Dentro de la serialización se utilizó el siguiente protocolo:
+
+- 1 Byte inicial para identificar el tipo de mensaje. Dentro de los tipos de mensajes tenemos:
+  - `0x01` se envia una apuesta
+  - `0x11` ACK
+
+- El resto de los campos se serializan de la siguiente forma:
+  - 1 Byte para describir la longitud del campo a mandar
+  - (1...255) Bytes para el valor del campo
+
+Este diseño permite manejar mensajes de hasta 255 caracteres por campo, lo cual es más que suficiente para los datos de la apuesta.
