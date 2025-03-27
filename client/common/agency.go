@@ -138,9 +138,6 @@ func (a *Agency) StartLottery() {
 
 	for bets := a.reader.getBets(); len(bets) > 0; bets = a.reader.getBets() {
 		// Send bets
-		// Get bets from csv
-		bets := a.reader.getBets()
-	
 		// Handle invalid bet
 		if bets == nil {
 			log.Errorf("action: create_bets | result: fail | error: invalid bet")
@@ -161,6 +158,9 @@ func (a *Agency) StartLottery() {
 		log.Errorf("action: send_end_bets | result: fail | agency_id: %v | error: %v", a.agencyID, err)
 		return
 	}
+
+	// Close reader 
+	a.reader.Close()	
 
 	// Close connection
 	a.conn.Close()

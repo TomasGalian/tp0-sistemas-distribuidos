@@ -10,6 +10,7 @@ type Reader struct {
 	filepath 	string
 	maxAmount 	int
 	betsReader 	*csv.Reader
+	file 		*os.File // Agregamos una referencia al archivo
 }
 
 func NewReader(filepath string, maxAmount int) (*Reader, error) {
@@ -25,11 +26,19 @@ func NewReader(filepath string, maxAmount int) (*Reader, error) {
 		filepath: 	filepath,
 		maxAmount: 	maxAmount,
 		betsReader: csvReader,
+		file: 		file, // Guardamos la referencia al archivo
 	}
 	return reader, nil
 }
 
-func (r *Reader) getBets() ([]Bet) {
+func (r *Reader) Close() error {
+	if r.file != nil {
+		return r.file.Close() // Cerramos el archivo
+	}
+	return nil
+}
+
+func (r *Reader) getBets() []Bet {
 	bets := make([]Bet, 0)
 	for i := 0; i < r.maxAmount; i++ {
 		// Read the bet
@@ -41,7 +50,6 @@ func (r *Reader) getBets() ([]Bet) {
 			log.Errorf("action: read_csv | result: fail | error: %v", err)
 			return nil
 		}
-
 		// Create a bet
 		bet := NewBet(csvBet[0], csvBet[1], csvBet[2], csvBet[3], csvBet[4])
 		if bet == nil {

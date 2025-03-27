@@ -30,6 +30,7 @@ func (bet *Bet) serializeBet(agencyID string) []byte {
 	// 0x01 for send bet
 	// 0x11 for send ACK
 	// serializedBet = append(serializedBet, 0x01)
+	// Max size of a bet 1356 bytes --> IF i have 8kB of buffer i can send 5 bets
 
 	// The rest of the fields are serialized as: length + data
 	serializedBet = append(serializedBet, byte(len(agencyID)))
