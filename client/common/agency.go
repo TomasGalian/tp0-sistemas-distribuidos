@@ -89,7 +89,7 @@ func (a *Agency) waitACK() error {
 		return err
 	}
 	log.Debugf("action: wait_ack | result: success | ack: %v", ack)
-	if ack[0] != 0x11 {
+	if ack[0] != 0xFF {
 		err := errors.New("invalid ACK received")
 		return err
 	}

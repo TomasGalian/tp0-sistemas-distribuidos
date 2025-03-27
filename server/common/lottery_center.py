@@ -90,7 +90,7 @@ class LotteryCenter:
                 logging.info(f'action: apuesta_recibida | result: success | cantidad: {action}')
                     
                 logging.debug('action: send_ack | result: in_progress')
-                client_sock.send(b'\x11')
+                client_sock.send(b'\xFF')
 
                 action = client_sock.recv(1)
                 action = int.from_bytes(action, byteorder='big')
