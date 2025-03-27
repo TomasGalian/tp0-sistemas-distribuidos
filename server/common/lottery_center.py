@@ -1,7 +1,7 @@
 import socket
 import logging
 import signal
-import os
+import multiprocessing
 
 from common.utils import Bet, store_bets, has_won, load_bets
 
@@ -16,11 +16,15 @@ class LotteryCenter:
         self._client_sockets = {}
         self._max_agencies = int(max_agencies)
 
+        self._barrier = multiprocessing.Barrier(max_agencies + 1) 
+        self._lock_file = multiprocessing.Lock()  
+
+
     def handler_Sigterm(self, sig, frame):
         logging.debug('action: shutdown | result: in_progress')
         for _client_sock in self._client_sockets.values():
-            if self._client_sock:
-                self._client_sock.close()
+            if _client_sock:
+                _client_sock.close()
 
         self._lottery_socket.close()
         logging.info('action: shutdown | result: success')
