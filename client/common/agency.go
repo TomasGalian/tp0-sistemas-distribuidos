@@ -204,13 +204,15 @@ func (a *Agency) StartLottery() {
 		return
 	}
 
-	time.Sleep(2 * time.Second)
-
+	
 	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", winners_len[0])
-
+	
 	// Close reader 
 	a.reader.Close()	
-
+	
 	// Close connection
 	a.conn.Close()
+	
+	// Sleep for tests
+	time.Sleep(2 * time.Second)
 }
