@@ -48,7 +48,7 @@ def main():
                   f"listen_backlog: {listen_backlog} | logging_level: {logging_level}")
 
     # Initialize server and start server loop
-    lottery_center = LotteryCenter(port, listen_backlog)
+    lottery_center = LotteryCenter(port, listen_backlog, os.getenv('AGENCY_NUMBER'))
     lottery_center.run()
 
 def initialize_log(logging_level):

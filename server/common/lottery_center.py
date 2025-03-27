@@ -8,12 +8,13 @@ from common.utils import Bet, store_bets, has_won, load_bets
 fields = ['Agencia', 'Nombre', 'Apellido', 'Documento', 'Fecha de nacimiento', 'Numero']
 
 class LotteryCenter:
-    def __init__(self, port, listen_backlog):
+    def __init__(self, port, listen_backlog, max_agencies):
         # Initialize lottery socket
         self._lottery_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._lottery_socket.bind(('', port))
         self._lottery_socket.listen(listen_backlog)
         self._client_sockets = {}
+        self._max_agencies = int(max_agencies)
 
     def handler_Sigterm(self, sig, frame):
         logging.debug('action: shutdown | result: in_progress')
@@ -35,24 +36,23 @@ class LotteryCenter:
 
         # Register signal handler
         signal.signal(signal.SIGTERM, self.handler_Sigterm)
-        # Removed unused variable agency_number
-        agency_number = os.getenv('AGENCY_NUMBER')
 
-        for i in range(0, int(agency_number)): # Total agencys
+        # Recive connections and bets
+        for i in range(0, self._max_agencies): # Total agencys
             self._client_sock = self.__accept_new_connection()
             logging.debug('action: accept_connections | result: success')
             self.__handle_client_connection(self._client_sock)
 
-        # Hacer el sorteo
-        winners = self._get_winners()
+        # Once all bets are received, the lottery center will start the lottery
+        winners_by_agency = self._get_winners_by_agency()
         logging.info('action: sorteo | result: success')
         for agency_id, _client_sock in self._client_sockets.items():
             action = _client_sock.recv(1)
             if action == b'\xF0':  # Receive the signal to deliver winners
-                winner_agency = winners.get(agency_id, [])
+                winner_agency = winners_by_agency.get(agency_id, [])
                 self._send_winners(_client_sock, winner_agency)
 
-    def _get_winners(self):
+    def _get_winners_by_agency(self):
         bets_list = load_bets()
         winners = {}
         for bet in bets_list:
@@ -66,10 +66,6 @@ class LotteryCenter:
         bets_serialized = bytearray()
         # Supose that len(winners) is less than 255
         bets_serialized.extend(len(winners).to_bytes(1, byteorder='big')) 
-        
-        for winner in winners:
-            bet_serialized = self._serialize_bet(winner)
-            bets_serialized.extend(bet_serialized)
         
         client_sock.sendall(bets_serialized)
 

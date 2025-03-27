@@ -126,39 +126,22 @@ func (a *Agency) SendBets(bets []Bet) error {
 	return nil
 }
 
-func (a *Agency) receiveWinners(clientSock net.Conn, totalBets int) ([]Bet, error) {
-	var bets []Bet
-	fields := []string{"Agencia", "Nombre", "Apellido", "Documento", "Fecha de nacimiento", "Numero"}
-
-	for i := 0; i < totalBets; i++ {
-		bet := make(map[string]string)
-		for _, field := range fields {
-			lenField := make([]byte, 1)
-			_, err := clientSock.Read(lenField)
-			if err != nil {
-				return nil, err
-			}
-
-			fieldLength := int(lenField[0])
-			buffer := make([]byte, fieldLength)
-			_, err = clientSock.Read(buffer)
-			if err != nil {
-				return nil, err
-			}
-
-			bet[field] = string(buffer)
-		}
-
-		bets = append(bets, Bet{
-			nombre:      	bet["Nombre"],
-			apellido:       bet["Apellido"],
-			documento:      bet["Documento"],
-			nacimiento:     bet["Fecha de nacimiento"],
-			numero:         bet["Numero"],
-		})
+func (a *Agency) getWinners() {
+	// Send winners ask to server: we use 0xF0 to ask for winners
+	err := a.sendData([]byte{0xF0})
+	if err != nil {
+		log.Errorf("action: send_winners | result: fail | agency_id: %v | error: %v", a.agencyID, err)
+		return
 	}
 
-	return bets, nil
+	winners_len := make([]byte, 1)
+	if _, err_winners := a.conn.Read(winners_len); err_winners != nil {
+		return
+	}
+
+	
+	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", winners_len[0])
+	
 }
 
 func (a *Agency) StartLottery() {
@@ -192,20 +175,8 @@ func (a *Agency) StartLottery() {
 		return
 	}
 
-	// Send winners ask to server: we use 0xF0 to ask for winners
-	err = a.sendData([]byte{0xF0})
-	if err != nil {
-		log.Errorf("action: send_winners | result: fail | agency_id: %v | error: %v", a.agencyID, err)
-		return
-	}
-
-	winners_len := make([]byte, 1)
-	if _, err_winners := a.conn.Read(winners_len); err_winners != nil {
-		return
-	}
-
-	
-	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", winners_len[0])
+	// Get winners
+	a.getWinners()
 	
 	// Close reader 
 	a.reader.Close()	
