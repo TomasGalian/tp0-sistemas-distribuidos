@@ -1,6 +1,7 @@
 import socket
 import logging
 import signal
+import os
 
 from common.utils import Bet, store_bets, has_won, load_bets
 
@@ -34,8 +35,10 @@ class LotteryCenter:
 
         # Register signal handler
         signal.signal(signal.SIGTERM, self.handler_Sigterm)
+        # Removed unused variable agency_number
+        agency_number = os.getenv('AGENCY_NUMBER')
 
-        for i in range(0, 5): # Total agencys
+        for i in range(0, agency_number): # Total agencys
             self._client_sock = self.__accept_new_connection()
             logging.debug('action: accept_connections | result: success')
             self.__handle_client_connection(self._client_sock)
