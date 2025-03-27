@@ -62,7 +62,7 @@ class LotteryCenter:
 
         self._lottery_socket.close()
 
-        for p in self._processes():
+        for p in self._processes:
             p.terminate()
             p.join()  
 
@@ -135,7 +135,10 @@ class LotteryCenter:
         logging.debug(f'[{multiprocessing.current_process().name}] action: start_process | result: success')
         try:
             # Use total_bets field to know how many bets will be received
-            total_bets = ord(client_sock.recv(1)) 
+            total_bets = client_sock.recv(1)
+            if not total_bets: 
+                raise ValueError("Incomplete data received for total_bets.")  
+            total_bets = ord(total_bets)
             while total_bets >= 1:                                  
                 bets = self.__receive_bet(client_sock, total_bets)
                 with lock_file:                
@@ -147,7 +150,10 @@ class LotteryCenter:
                 client_sock.send(ACK)
 
                 # Expect the size of the other batch. If it is 0 is because the client finish
-                total_bets = ord(client_sock.recv(1))
+                total_bets = client_sock.recv(1)
+                if not total_bets: 
+                    raise ValueError("Incomplete data received for total_bets .")  
+                total_bets = ord(total_bets)
             
             agency_id = bets[0].agency
             self._client_sockets.append(client_sock)  # Add client socket to the list
