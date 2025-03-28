@@ -29,9 +29,13 @@ func (bet *Bet) serializeBet(agencyID string) []byte {
 	var serializedBet []byte
 
 	// Use 1 byte for action
-	// 0x01 for send bet
-	// 0x11 for send ACK
-	// serializedBet = append(serializedBet, 0x01)
+	
+	//  	0xNN para identificar la cantidad de apuestas que se están enviando dentro del chunk.
+	//		0xFF ACK
+	//		0x00 para identificar que ya se enviaron todas las apuestas.
+	//		0x01 para identificar que se envió una apuesta.
+	//		0xF0 para identificar que se piden los ganadores 
+
 
 	// The rest of the fields are serialized as: length + data
 	serializedBet = append(serializedBet, byte(len(agencyID))) // 1 byte
